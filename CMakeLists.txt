@@ -13,3 +13,5 @@ file(GLOB SOURCES "src/*.cpp")
 file(GLOB HEADERS "src/*.h")
 
 add_executable(${PROJECT_NAME} ${HEADERS} ${SOURCES})
+
+target_link_libraries(${PROJECT_NAME} PUBLIC spdlog::spdlog ${libusb_LIBRARIES})

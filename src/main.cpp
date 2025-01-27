@@ -1,8 +1,13 @@
 #include <spdlog/spdlog.h>
 
+#include "UsbHandler.h"
+
 int main(int argc, char** argv)
 {
-    spdlog::set_pattern("[%l]: %v"); // TODO: https://github.com/gabime/spdlog/wiki/3.-Custom-formatting
+    spdlog::set_pattern("[%T](%l): %v");
+
+    UsbHandler usb;
+    usb.listUsbDevices();
 
     return 0;
 }
