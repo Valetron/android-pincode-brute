@@ -12,6 +12,12 @@ enum class ExcludeVendors
 {
     Linux = 0x1d6b
 };
+
+enum class TVendorId : uint16_t
+{
+    Xiaomi = 0x2717,
+    Samsung = 0x04E8
+};
 }
 
 UsbHandler::UsbHandler()
@@ -51,10 +57,11 @@ void UsbHandler::listUsbDevices() const
             libusb_device_descriptor desc {};
             auto res = libusb_get_device_descriptor(devs[i], &desc);
 
-            if (static_cast<decltype(desc.idVendor)>(ExcludeVendors::Linux) == desc.idVendor)
-                continue;
-
-            SPDLOG_INFO("idVendor - {}, idProduct - {}, manufacturer - {}", desc.idVendor, desc.idProduct, desc.bDeviceProtocol);
+            if (isVendorValid(desc.idVendor))
+            {
+                SPDLOG_INFO("idVendor - {}, idProduct - {}, manufacturer - {}", desc.idVendor, desc.idProduct, desc.bDeviceProtocol);
+                break;
+            }
         }
     }
 
@@ -64,4 +71,17 @@ void UsbHandler::listUsbDevices() const
 
     // FIXME: core dumped
     libusb_free_device_list(devs, 1); // NOTE: https://libusb.sourceforge.io/api-1.0/group__libusb__dev.html#gac0fe4b65914c5ed036e6cbec61cb0b97
+}
+
+// TODO: make templates
+bool UsbHandler::isVendorValid(uint16_t vendorId) const
+{
+    switch (static_cast<TVendorId>(vendorId))
+    {
+    case TVendorId::Xiaomi:
+    case TVendorId::Samsung:
+        return true;
+    default:
+        return false;
+    }
 }

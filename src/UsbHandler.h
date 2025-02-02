@@ -11,6 +11,9 @@ public:
     void listUsbDevices() const;
 
 private:
+    bool isVendorValid(uint16_t vendorId) const;
+
+private:
     libusb_context** m_context {nullptr};
 };
 
