@@ -14,7 +14,7 @@ private:
     bool isVendorValid(uint16_t vendorId) const;
 
 private:
-    libusb_context** m_context {nullptr};
+    // libusb_context** m_context {nullptr}; // DELETEME:
 };
 
 #endif // USBHANDLER_H

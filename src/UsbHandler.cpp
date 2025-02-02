@@ -1,10 +1,13 @@
+#include <chrono>
 #include <string>
-#include <iostream>
+#include <thread>
 
 #include <spdlog/spdlog.h>
 #include <libusb-1.0/libusb.h>
 
 #include "UsbHandler.h"
+
+using namespace std::chrono_literals;
 
 namespace
 {
@@ -24,9 +27,9 @@ UsbHandler::UsbHandler()
 {
     int rc {0};
 #if defined(LIBUSB_API_VERSION) && (LIBUSB_API_VERSION >= 0x0100010A)
-    rc = libusb_init_context(m_context, nullptr, nullptr);
+    rc = libusb_init_context(nullptr, nullptr, nullptr);
 #else
-    rc = libusb_init(m_context);
+    rc = libusb_init(nullptr);
 #endif
     if (rc != 0)
     {
@@ -36,41 +39,45 @@ UsbHandler::UsbHandler()
 
 UsbHandler::~UsbHandler()
 {
-    libusb_exit(*m_context);
+    libusb_exit(nullptr);
 }
 
 void UsbHandler::listUsbDevices() const
 {
     ssize_t rc {0};
     libusb_device** devs {nullptr};
+    bool isDeviceFound {false};
 
-    rc = libusb_get_device_list(nullptr, &devs);
-    if (rc < 0)
+
+    while (!isDeviceFound)
     {
-        SPDLOG_ERROR("No USB devices found");
-        return;
-    }
-    else
-    {
-        for (size_t i = 0; i < rc; ++i)
+        rc = libusb_get_device_list(nullptr, &devs);
+        if (rc < 0)
         {
-            libusb_device_descriptor desc {};
-            auto res = libusb_get_device_descriptor(devs[i], &desc);
-
-            if (isVendorValid(desc.idVendor))
-            {
-                SPDLOG_INFO("idVendor - {}, idProduct - {}, manufacturer - {}", desc.idVendor, desc.idProduct, desc.bDeviceProtocol);
-                break;
-            }
+            SPDLOG_ERROR("No USB devices found");
         }
+        else
+        {
+            for (size_t i = 0; i < rc; ++i)
+            {
+                libusb_device_descriptor desc {};
+                auto res = libusb_get_device_descriptor(devs[i], &desc);
+
+                if (isVendorValid(desc.idVendor))
+                {
+                    // TODO: добавить строковую информацию
+                    SPDLOG_INFO("Found device: idVendor - {:x}, idProduct - {:x}", desc.idVendor, desc.idProduct);
+                    isDeviceFound = true;
+                    break;
+                }
+            }
+
+            libusb_free_device_list(devs, 1);
+        }
+
+        if (!isDeviceFound)
+            std::this_thread::sleep_for(3s);
     }
-
-    std::string userInput {};
-    std::cout << "Choose USB: ";
-    std::getline(std::cin, userInput);
-
-    // FIXME: core dumped
-    libusb_free_device_list(devs, 1); // NOTE: https://libusb.sourceforge.io/api-1.0/group__libusb__dev.html#gac0fe4b65914c5ed036e6cbec61cb0b97
 }
 
 // TODO: make templates

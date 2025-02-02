@@ -3,11 +3,12 @@ set(QT_CREATOR_SKIP_CONAN_SETUP ON)
 
 project(android-pin-brute LANGUAGES CXX)
 
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(VRFindBoost)
 include(VRFindSpdlog)
 include(VRFindLibusb)
+include(VRFindLibhid)
 
 file(GLOB SOURCES "src/*.cpp")
 file(GLOB HEADERS "src/*.h")
