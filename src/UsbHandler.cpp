@@ -1,3 +1,4 @@
+#include <array>
 #include <chrono>
 #include <string>
 #include <thread>
@@ -11,11 +12,6 @@ using namespace std::chrono_literals;
 
 namespace
 {
-enum class ExcludeVendors
-{
-    Linux = 0x1d6b
-};
-
 enum class TVendorId : uint16_t
 {
     Xiaomi = 0x2717,
@@ -42,12 +38,11 @@ UsbHandler::~UsbHandler()
     libusb_exit(nullptr);
 }
 
-void UsbHandler::listUsbDevices() const
+void UsbHandler::findDevice() const
 {
     ssize_t rc {0};
     libusb_device** devs {nullptr};
     bool isDeviceFound {false};
-
 
     while (!isDeviceFound)
     {
@@ -65,8 +60,7 @@ void UsbHandler::listUsbDevices() const
 
                 if (isVendorValid(desc.idVendor))
                 {
-                    // TODO: добавить строковую информацию
-                    SPDLOG_INFO("Found device: idVendor - {:x}, idProduct - {:x}", desc.idVendor, desc.idProduct);
+                    printDeviceInfo(devs[i], desc);
                     isDeviceFound = true;
                     break;
                 }
@@ -91,4 +85,34 @@ bool UsbHandler::isVendorValid(uint16_t vendorId) const
     default:
         return false;
     }
+}
+
+void UsbHandler::printDeviceInfo(libusb_device* dev, const libusb_device_descriptor& desc) const
+{
+    libusb_device_handle* handle {nullptr};
+    std::string product {"Unknown"};
+    std::string manufacturer {"Unknown"};
+    std::string serialNumber {"Unknown"};
+    std::array<uint8_t, 256> strInfo {};
+
+    auto rc = libusb_open(dev, &handle);
+    if (0 == rc)
+    {
+        rc = libusb_get_string_descriptor_ascii(handle, desc.iProduct, strInfo.data(), strInfo.size());
+        if (rc > 0)
+            product.assign(reinterpret_cast<char*>(strInfo.data()), rc);
+
+        rc = libusb_get_string_descriptor_ascii(handle, desc.iManufacturer, strInfo.data(), strInfo.size());
+        if (rc > 0)
+            manufacturer.assign(reinterpret_cast<char*>(strInfo.data()), rc);
+
+        rc = libusb_get_string_descriptor_ascii(handle, desc.iSerialNumber, strInfo.data(), strInfo.size());
+        if (rc > 0)
+            serialNumber.assign(reinterpret_cast<char*>(strInfo.data()), rc);
+
+        if (handle)
+            libusb_close(handle);
+    }
+
+    SPDLOG_INFO("Found device `{} {}`, serial - {}, id - {:x}:{:x}", manufacturer, product, serialNumber, desc.idVendor, desc.idProduct);
 }

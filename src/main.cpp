@@ -7,7 +7,7 @@ int main(int argc, char** argv)
     spdlog::set_pattern("[%T](%l): %v");
 
     UsbHandler usb;
-    usb.listUsbDevices();
+    usb.findDevice();
 
     return 0;
 }
