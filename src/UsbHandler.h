@@ -1,14 +1,18 @@
 #ifndef USBHANDLER_H
 #define USBHANDLER_H
 
+#include <utility>
+
 #include <libusb-1.0/libusb.h>
+
+using TDeviceIds = std::pair<uint16_t, uint16_t>;
 
 class UsbHandler final
 {
 public:
     UsbHandler();
     ~UsbHandler();
-    void findDevice() const;
+    TDeviceIds findDevice() const;
 
 private:
     bool isVendorValid(uint16_t vendorId) const;

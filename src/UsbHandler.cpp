@@ -38,15 +38,17 @@ UsbHandler::~UsbHandler()
     libusb_exit(nullptr);
 }
 
-void UsbHandler::findDevice() const
+TDeviceIds UsbHandler::findDevice() const
 {
-    ssize_t rc {0};
     libusb_device** devs {nullptr};
     bool isDeviceFound {false};
 
+    uint16_t vendorId {0};
+    uint16_t productId {0};
+
     while (!isDeviceFound)
     {
-        rc = libusb_get_device_list(nullptr, &devs);
+        auto rc = libusb_get_device_list(nullptr, &devs);
         if (rc < 0)
         {
             SPDLOG_ERROR("No USB devices found");
@@ -62,6 +64,10 @@ void UsbHandler::findDevice() const
                 {
                     printDeviceInfo(devs[i], desc);
                     isDeviceFound = true;
+
+                    vendorId = desc.idVendor;
+                    productId = desc.idProduct;
+
                     break;
                 }
             }
@@ -72,6 +78,17 @@ void UsbHandler::findDevice() const
         if (!isDeviceFound)
             std::this_thread::sleep_for(3s);
     }
+
+    return std::make_pair(vendorId, productId);
+
+    // libusb_device_handle* handle {nullptr};
+    // SPDLOG_INFO("Opening device: {:x}:{:x}", device.Vendor, device.Product);
+    // handle = libusb_open_device_with_vid_pid(nullptr, device.Vendor, device.Product);
+    // if (!handle)
+    // {
+    //     SPDLOG_ERROR("Failed open device");
+    //     return;
+    // }
 }
 
 // TODO: make templates
