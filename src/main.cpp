@@ -16,6 +16,8 @@ int main(int argc, char** argv)
         std::tie(vendorId, productId) = usb.findDevice();
 
         Brute brute{vendorId, productId};
+        brute.connect();
+
     }
     catch (const std::exception& ex)
     {

@@ -1,6 +1,7 @@
 #ifndef BRUTE_H
 #define BRUTE_H
 
+#include <vector>
 #include <string>
 #include <utility>
 #include <cstdint>
@@ -30,13 +31,16 @@ class Brute
 {
 public:
     Brute(uint16_t vendorId, uint16_t productId);
+    ~Brute();
+    bool connect();
+    void start();
 
 private:
-    bool connect();
+    bool connectStylus(const std::vector<uint8_t>& data);
     std::pair<bool, std::string> checkProtocol();
 
 private:
-    Protocol m_protocol {Protocol::None};
+    bool m_isHidRegistered {false};
     libusb_device_handle* m_handle {nullptr};
 };
 
