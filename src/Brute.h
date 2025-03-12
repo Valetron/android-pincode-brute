@@ -38,8 +38,10 @@ public:
 private:
     bool connectStylus(const std::vector<uint8_t>& data);
     std::pair<bool, std::string> checkProtocol();
+    void setPosition(int x, int y);
 
 private:
+    uint16_t m_hidId {0};
     bool m_isHidRegistered {false};
     libusb_device_handle* m_handle {nullptr};
 };

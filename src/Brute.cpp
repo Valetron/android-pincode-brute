@@ -1,11 +1,15 @@
 #include <array>
+#include <thread>
+#include <chrono>
 
 #include <spdlog/spdlog.h>
 
 #include "Brute.h"
 #include "HIDPacket.h"
 
-Brute::Brute(uint16_t vendorId, uint16_t productId)
+using namespace std::chrono_literals;
+
+Brute::Brute(uint16_t vendorId, uint16_t productId) : m_hidId(std::rand())
 {
     SPDLOG_DEBUG("Brute class created with params: protocol {}, vendor id - {}, product id - {}",
                  m_protocol, vendorId, productId);
@@ -30,7 +34,7 @@ Brute::~Brute()
     const auto rc = libusb_control_transfer(m_handle,
                         static_cast<uint8_t>(TransferType::Out),
                         static_cast<uint8_t>(ControlRequests::ACCESSORY_UNREGISTER_HID),
-                        142, 0, nullptr, 0, 0);
+                        m_hidId, 0, nullptr, 0, 0);
     if (rc < 0)
         SPDLOG_ERROR("Error unregister HID: {}", rc);
 
@@ -40,6 +44,7 @@ Brute::~Brute()
 bool Brute::connect()
 {
     connectStylus(HIDPackets::TouchSreenPacket);
+    setPosition(3000, 3000);
     return true;
 }
 
@@ -80,7 +85,7 @@ bool Brute::connectStylus(const std::vector<uint8_t>& data)
     auto rc = libusb_control_transfer(m_handle,
                         static_cast<uint8_t>(TransferType::Out),
                         static_cast<uint8_t>(ControlRequests::ACCESSORY_REGISTER_HID),
-                        142, data.size(), nullptr, 0, 0);
+                        m_hidId, data.size(), nullptr, 0, 0);
 
     if (rc < 0)
     {
@@ -88,11 +93,10 @@ bool Brute::connectStylus(const std::vector<uint8_t>& data)
         return false;
     }
 
-    // TODO: 142 поменять на случайное число в поле класса
     rc = libusb_control_transfer(m_handle,
                                  static_cast<uint8_t>(TransferType::Out),
                                  static_cast<uint8_t>(ControlRequests::ACCESSORY_SET_HID_REPORT_DESC),
-                                 142, 0, const_cast<uint8_t*>(data.data()), data.size(), 0);
+                                 m_hidId, 0, const_cast<uint8_t*>(data.data()), data.size(), 0);
 
     if (rc < 0)
     {
@@ -101,6 +105,66 @@ bool Brute::connectStylus(const std::vector<uint8_t>& data)
     }
 
     return res;
+}
+
+void Brute::setPosition(int x, int y)
+{
+    const auto xMsb = (int((x >> 8) & 0xff));
+    const auto yMsb = (int((y >> 8) & 0xff));
+
+    const auto xLsb = (int(x & 0xff));
+    const auto yLsb = (int(y & 0xff));
+
+    SPDLOG_INFO("Msb ({}, {}), Lsb = ({}, {})", xMsb, yMsb, xLsb, yLsb);
+    std::vector<uint8_t> data {0x02,
+                                        static_cast<uint8_t>(xLsb),
+                                        static_cast<uint8_t>(xMsb),
+                                        static_cast<uint8_t>(yLsb),
+                                        static_cast<uint8_t>(yMsb)};
+
+    std::this_thread::sleep_for(2s);
+    // , , m_hidId, 0, data
+    auto rc = libusb_control_transfer(m_handle,
+                                            static_cast<uint8_t>(TransferType::Out),
+                                            static_cast<uint8_t>(ControlRequests::ACCESSORY_SEND_HID_EVENT),
+                                            m_hidId, 0, data.data(), data.size(), 0);
+
+    SPDLOG_INFO("send 0 rc = {}", rc);
+
+    std::vector<uint8_t> aaa {0x01, 0, 0, 0, 0};
+    std::vector<uint8_t> bbb {0x00, 0, 0, 0, 0};
+
+    for (auto i = 0; i < 2; ++i)
+    {
+        rc = libusb_control_transfer(m_handle,
+                                     static_cast<uint8_t>(TransferType::Out),
+                                     static_cast<uint8_t>(ControlRequests::ACCESSORY_SEND_HID_EVENT),
+                                     m_hidId, 0, aaa.data(), aaa.size(), 0);
+        SPDLOG_INFO("send 1 rc = {}", rc);
+        rc = libusb_control_transfer(m_handle,
+                                     static_cast<uint8_t>(TransferType::Out),
+                                     static_cast<uint8_t>(ControlRequests::ACCESSORY_SEND_HID_EVENT),
+                                     m_hidId, 0, bbb.data(), bbb.size(), 0);
+        SPDLOG_INFO("send 2 rc = {}", rc);
+    }
+
+    std::this_thread::sleep_for(1500ms);
+
+    for (auto i = 0; i < 3; ++i)
+    {
+        rc = libusb_control_transfer(m_handle,
+                                     static_cast<uint8_t>(TransferType::Out),
+                                     static_cast<uint8_t>(ControlRequests::ACCESSORY_SEND_HID_EVENT),
+                                     m_hidId, 0, aaa.data(), aaa.size(), 0);
+        SPDLOG_INFO("send 1 rc = {}", rc);
+        rc = libusb_control_transfer(m_handle,
+                                     static_cast<uint8_t>(TransferType::Out),
+                                     static_cast<uint8_t>(ControlRequests::ACCESSORY_SEND_HID_EVENT),
+                                     m_hidId, 0, bbb.data(), bbb.size(), 0);
+        SPDLOG_INFO("send 2 rc = {}", rc);
+        std::this_thread::sleep_for(100ms);
+    }
+
 }
 
 void Brute::start()
