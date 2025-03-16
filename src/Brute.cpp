@@ -44,7 +44,7 @@ Brute::~Brute()
 bool Brute::connect()
 {
     connectStylus(HIDPackets::TouchSreenPacket);
-    setPosition(3000, 3000);
+    setPosition(5000, 5000);
     return true;
 }
 
@@ -115,8 +115,8 @@ void Brute::setPosition(int x, int y)
     const auto xLsb = (int(x & 0xff));
     const auto yLsb = (int(y & 0xff));
 
-    SPDLOG_INFO("Msb ({}, {}), Lsb = ({}, {})", xMsb, yMsb, xLsb, yLsb);
-    std::vector<uint8_t> data {0x02,
+    SPDLOG_INFO("Msb ({0:x}, {0:x}), Lsb = ({0:x}, {0:x})", xMsb, yMsb, xLsb, yLsb);
+    std::vector<uint8_t> data {0x01,
                                         static_cast<uint8_t>(xLsb),
                                         static_cast<uint8_t>(xMsb),
                                         static_cast<uint8_t>(yLsb),
@@ -131,6 +131,7 @@ void Brute::setPosition(int x, int y)
 
     SPDLOG_INFO("send 0 rc = {}", rc);
 
+    return;
     std::vector<uint8_t> aaa {0x01, 0, 0, 0, 0};
     std::vector<uint8_t> bbb {0x00, 0, 0, 0, 0};
 
