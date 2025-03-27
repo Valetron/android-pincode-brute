@@ -15,6 +15,7 @@ file(GLOB HEADERS "src/*.h")
 
 add_executable(${PROJECT_NAME} ${HEADERS} ${SOURCES})
 
+target_compile_definitions(${PROJECT_NAME} PUBLIC -DSPDLOG_ACTIVE_LEVEL=SPDLOG_LEVEL_TRACE)
 # target_compile_options(${PROJECT_NAME} PUBLIC -fno-rtti)
 
 target_link_libraries(${PROJECT_NAME} PUBLIC spdlog::spdlog ${libusb_LIBRARIES} Boost::program_options)

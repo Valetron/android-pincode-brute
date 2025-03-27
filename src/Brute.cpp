@@ -11,8 +11,7 @@ using namespace std::chrono_literals;
 
 Brute::Brute(uint16_t vendorId, uint16_t productId) : m_hidId(std::rand())
 {
-    SPDLOG_DEBUG("Brute class created with params: protocol {}, vendor id - {}, product id - {}",
-                 m_protocol, vendorId, productId);
+    SPDLOG_DEBUG("Brute class created with params: vendor id - {}, product id - {}", vendorId, productId);
     m_handle = libusb_open_device_with_vid_pid(nullptr, vendorId, productId);
     if (!m_handle)
         throw std::runtime_error("Error open device");
