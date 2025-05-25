@@ -7,6 +7,7 @@
 #include <libusb-1.0/libusb.h>
 
 #include "UsbHandler.h"
+#include "Types.h"
 
 using namespace std::chrono_literals;
 
@@ -19,7 +20,7 @@ enum class TVendorId : uint16_t
 };
 }
 
-UsbHandler::UsbHandler()
+UsbHandler::UsbHandler() : m_hidId(std::rand())
 {
     int rc {0};
 #if defined(LIBUSB_API_VERSION) && (LIBUSB_API_VERSION >= 0x0100010A)
@@ -28,17 +29,28 @@ UsbHandler::UsbHandler()
     rc = libusb_init(nullptr);
 #endif
     if (rc != 0)
-    {
-        SPDLOG_ERROR("Error init libusb context: ", rc);
-    }
+        throw std::runtime_error("Error init libusb context");
+
+    findDevice();
 }
 
 UsbHandler::~UsbHandler()
 {
+    // if (m_isHidRegistered)
+    // TODO: unregister hid
+    const auto rc = libusb_control_transfer(m_handle,
+                                            static_cast<uint8_t>(TransferType::Out),
+                                            static_cast<uint8_t>(ControlRequests::ACCESSORY_UNREGISTER_HID),
+                                            m_hidId, 0, nullptr, 0, 0);
+    if (rc < 0)
+        SPDLOG_ERROR("Error unregister HID: {}", rc);
+
+    libusb_close(m_handle);
+
     libusb_exit(nullptr);
 }
 
-TDeviceIds UsbHandler::findDevice() const
+TDeviceIds UsbHandler::findDevice()
 {
     libusb_device** devs {nullptr};
     bool isDeviceFound {false};
@@ -79,16 +91,18 @@ TDeviceIds UsbHandler::findDevice() const
             std::this_thread::sleep_for(3s);
     }
 
-    return std::make_pair(vendorId, productId);
+    m_handle = libusb_open_device_with_vid_pid(nullptr, vendorId, productId);
+    if (!m_handle)
+        throw std::runtime_error("Error open device");
 
-    // libusb_device_handle* handle {nullptr};
-    // SPDLOG_INFO("Opening device: {:x}:{:x}", device.Vendor, device.Product);
-    // handle = libusb_open_device_with_vid_pid(nullptr, device.Vendor, device.Product);
-    // if (!handle)
-    // {
-    //     SPDLOG_ERROR("Failed open device");
-    //     return;
-    // }
+    bool res {false};
+    std::string resStr {};
+    std::tie(res, resStr) = checkProtocol();
+
+    if (!res)
+        throw std::runtime_error(resStr);
+
+    SPDLOG_DEBUG("{}", resStr);
 }
 
 // TODO: make templates
@@ -132,4 +146,44 @@ void UsbHandler::printDeviceInfo(libusb_device* dev, const libusb_device_descrip
     }
 
     SPDLOG_INFO("Found device `{} {}`, serial - {}, id - {:x}:{:x}", manufacturer, product, serialNumber, desc.idVendor, desc.idProduct);
+}
+
+std::pair<bool, std::string> UsbHandler::checkProtocol()
+{
+    std::array<uint8_t, 8> data {0};
+    const auto res = libusb_control_transfer(m_handle,
+                                             static_cast<uint8_t>(TransferType::In),
+                                             static_cast<uint8_t>(ControlRequests::ACCESSORY_GET_PROTOCOL),
+                                             0, 0, data.data(), data.size(), 0); // TODO: limit timeout?
+
+    if (LIBUSB_ERROR_TIMEOUT == res
+        || LIBUSB_ERROR_PIPE == res
+        || LIBUSB_ERROR_NO_DEVICE == res
+        || LIBUSB_ERROR_BUSY == res
+        || LIBUSB_ERROR_INVALID_PARAM == res
+        || res > data.size())
+    {
+        return std::make_pair(false, "Error get protocol");
+    }
+
+    uint16_t protocol {0};
+    for (int i = 0; i < res; ++i)
+        protocol += data.at(i);
+
+    if (protocol != static_cast<uint16_t>(Protocol::AOA2))
+        return std::make_pair(false, "Device doesn't support AOAv2 protocol");
+
+    return std::make_pair(true, "AOAv2 protocol supported");
+}
+
+int UsbHandler::sendEvent(TransferType direction, ControlRequests request, uint16_t index, const uint8_t* data, uint16_t dataLen, uint32_t timeout)
+{
+    return libusb_control_transfer(m_handle,
+                                   static_cast<uint8_t>(direction),
+                                   static_cast<uint8_t>(request),
+                                   m_hidId,
+                                   index,
+                                   const_cast<unsigned char*>(data),
+                                   dataLen,
+                                   timeout);
 }
