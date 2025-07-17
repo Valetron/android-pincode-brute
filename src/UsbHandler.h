@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <memory>
 #include <utility>
 
 extern "C"
@@ -19,10 +20,9 @@ class UsbHandler final
 public:
     UsbHandler();
     ~UsbHandler();
-    void run();
 
 private:
-    TDeviceIds findDevice();
+    void findDevice();
     bool isVendorValid(uint16_t vendorId) const;
     std::pair<bool, std::string> checkProtocol();
     bool connectStylus(const std::vector<uint8_t>& data);
@@ -32,7 +32,7 @@ private:
 private:
     const uint16_t m_hidId {0};
     bool m_isHidRegistered {false};
-    libusb_device_handle* m_handle {nullptr};
+    std::unique_ptr<libusb_device_handle> m_handle {nullptr};
 };
 
 #endif // USBHANDLER_H

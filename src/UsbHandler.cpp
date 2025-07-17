@@ -9,10 +9,12 @@
 #include "UsbHandler.h"
 #include "Types.h"
 
-using namespace std::chrono_literals;
-
 namespace
 {
+constexpr auto g_dataSize {8};
+constexpr auto g_maxStrLen {256};
+constexpr std::chrono::seconds g_sleepSec {3};
+
 enum class TVendorId : uint16_t
 {
     Xiaomi = 0x2717,
@@ -30,47 +32,50 @@ UsbHandler::UsbHandler() : m_hidId(std::rand())
 #endif
     if (rc != 0)
         throw std::runtime_error("Error init libusb context");
-
-    findDevice();
 }
 
 UsbHandler::~UsbHandler()
 {
-    // if (m_isHidRegistered)
-    // TODO: unregister hid
-    const auto rc = libusb_control_transfer(m_handle,
+    const auto rc = libusb_control_transfer(m_handle.get(),
                                             static_cast<uint8_t>(TransferType::Out),
                                             static_cast<uint8_t>(ControlRequests::ACCESSORY_UNREGISTER_HID),
                                             m_hidId, 0, nullptr, 0, 0);
     if (rc < 0)
         SPDLOG_ERROR("Error unregister HID: {}", rc);
 
-    libusb_close(m_handle);
+    if (m_handle)
+    {
+        auto ptr = m_handle.release();
+        libusb_close(ptr);
+    }
 
     libusb_exit(nullptr);
 }
 
-TDeviceIds UsbHandler::findDevice()
+void UsbHandler::findDevice()
 {
-    libusb_device** devs {nullptr};
+    libusb_device** devs {nullptr}; // TODO: make smart ptr
     bool isDeviceFound {false};
-
     uint16_t vendorId {0};
     uint16_t productId {0};
 
     while (!isDeviceFound)
     {
-        auto rc = libusb_get_device_list(nullptr, &devs);
+        const auto rc = libusb_get_device_list(nullptr, &devs);
         if (rc < 0)
         {
             SPDLOG_ERROR("No USB devices found");
         }
         else
         {
-            for (size_t i = 0; i < rc; ++i)
+            for (size_t i {0}; i < rc; ++i)
             {
                 libusb_device_descriptor desc {};
-                auto res = libusb_get_device_descriptor(devs[i], &desc);
+                if (0 == libusb_get_device_descriptor(devs[i], &desc))
+                {
+                    SPDLOG_ERROR("Failed to get device desc");
+                    break;
+                }
 
                 if (isVendorValid(desc.idVendor))
                 {
@@ -80,6 +85,7 @@ TDeviceIds UsbHandler::findDevice()
                     vendorId = desc.idVendor;
                     productId = desc.idProduct;
 
+                    libusb_free_device_list(devs, 1);
                     break;
                 }
             }
@@ -88,12 +94,15 @@ TDeviceIds UsbHandler::findDevice()
         }
 
         if (!isDeviceFound)
-            std::this_thread::sleep_for(3s);
+            std::this_thread::sleep_for(g_sleepSec);
     }
 
-    m_handle = libusb_open_device_with_vid_pid(nullptr, vendorId, productId);
+    m_handle = std::unique_ptr<libusb_device_handle>(libusb_open_device_with_vid_pid(nullptr, vendorId, productId));
     if (!m_handle)
-        throw std::runtime_error("Error open device");
+    {
+        SPDLOG_ERROR("Error open device"); // NOTE: throw ?
+        return;
+    }
 
     bool res {false};
     std::string resStr {};
@@ -124,7 +133,7 @@ void UsbHandler::printDeviceInfo(libusb_device* dev, const libusb_device_descrip
     std::string product {"Unknown"};
     std::string manufacturer {"Unknown"};
     std::string serialNumber {"Unknown"};
-    std::array<uint8_t, 256> strInfo {};
+    std::array<uint8_t, g_maxStrLen> strInfo {};
 
     auto rc = libusb_open(dev, &handle);
     if (0 == rc)
@@ -150,8 +159,8 @@ void UsbHandler::printDeviceInfo(libusb_device* dev, const libusb_device_descrip
 
 std::pair<bool, std::string> UsbHandler::checkProtocol()
 {
-    std::array<uint8_t, 8> data {0};
-    const auto res = libusb_control_transfer(m_handle,
+    std::array<uint8_t, g_dataSize> data {0};
+    const auto res = libusb_control_transfer(m_handle.get(),
                                              static_cast<uint8_t>(TransferType::In),
                                              static_cast<uint8_t>(ControlRequests::ACCESSORY_GET_PROTOCOL),
                                              0, 0, data.data(), data.size(), 0); // TODO: limit timeout?
@@ -167,7 +176,7 @@ std::pair<bool, std::string> UsbHandler::checkProtocol()
     }
 
     uint16_t protocol {0};
-    for (int i = 0; i < res; ++i)
+    for (size_t i {0}; i < res; ++i)
         protocol += data.at(i);
 
     if (protocol != static_cast<uint16_t>(Protocol::AOA2))
@@ -178,7 +187,7 @@ std::pair<bool, std::string> UsbHandler::checkProtocol()
 
 int UsbHandler::sendEvent(TransferType direction, ControlRequests request, uint16_t index, const uint8_t* data, uint16_t dataLen, uint32_t timeout)
 {
-    return libusb_control_transfer(m_handle,
+    return libusb_control_transfer(m_handle.get(),
                                    static_cast<uint8_t>(direction),
                                    static_cast<uint8_t>(request),
                                    m_hidId,
