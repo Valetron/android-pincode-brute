@@ -1,12 +1,12 @@
+#include "UsbHandler.h"
+
 #include <array>
 #include <chrono>
 #include <string>
 #include <thread>
 
 #include <spdlog/spdlog.h>
-#include <libusb-1.0/libusb.h>
 
-#include "UsbHandler.h"
 #include "Types.h"
 
 namespace
@@ -45,8 +45,9 @@ UsbHandler::~UsbHandler()
 
     if (m_handle)
     {
-        auto ptr = m_handle.release();
-        libusb_close(ptr);
+        // auto ptr = m_handle.reset();
+        // libusb_close(ptr);
+        libusb_close(m_handle.release());
     }
 
     libusb_exit(nullptr);
