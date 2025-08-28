@@ -32,7 +32,7 @@ private:
 private:
     const uint16_t m_hidId {0};
     bool m_isHidRegistered {false};
-    std::unique_ptr<libusb_device_handle> m_handle {nullptr};
+    libusb_device_handle* m_handle {nullptr};
 };
 
 #endif // USBHANDLER_H

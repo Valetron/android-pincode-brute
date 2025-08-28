@@ -36,7 +36,7 @@ UsbHandler::UsbHandler() : m_hidId(std::rand())
 
 UsbHandler::~UsbHandler()
 {
-    const auto rc = libusb_control_transfer(m_handle.get(),
+    const auto rc = libusb_control_transfer(m_handle,
                                             static_cast<uint8_t>(TransferType::Out),
                                             static_cast<uint8_t>(ControlRequests::ACCESSORY_UNREGISTER_HID),
                                             m_hidId, 0, nullptr, 0, 0);
@@ -47,7 +47,7 @@ UsbHandler::~UsbHandler()
     {
         // auto ptr = m_handle.reset();
         // libusb_close(ptr);
-        libusb_close(m_handle.release());
+        libusb_close(m_handle);
     }
 
     libusb_exit(nullptr);
@@ -98,7 +98,7 @@ void UsbHandler::findDevice()
             std::this_thread::sleep_for(g_sleepSec);
     }
 
-    m_handle = std::unique_ptr<libusb_device_handle>(libusb_open_device_with_vid_pid(nullptr, vendorId, productId));
+    m_handle = libusb_open_device_with_vid_pid(nullptr, vendorId, productId);
     if (!m_handle)
     {
         SPDLOG_ERROR("Error open device"); // NOTE: throw ?
@@ -161,7 +161,7 @@ void UsbHandler::printDeviceInfo(libusb_device* dev, const libusb_device_descrip
 std::pair<bool, std::string> UsbHandler::checkProtocol()
 {
     std::array<uint8_t, g_dataSize> data {0};
-    const auto res = libusb_control_transfer(m_handle.get(),
+    const auto res = libusb_control_transfer(m_handle,
                                              static_cast<uint8_t>(TransferType::In),
                                              static_cast<uint8_t>(ControlRequests::ACCESSORY_GET_PROTOCOL),
                                              0, 0, data.data(), data.size(), 0); // TODO: limit timeout?
@@ -188,7 +188,7 @@ std::pair<bool, std::string> UsbHandler::checkProtocol()
 
 int UsbHandler::sendEvent(TransferType direction, ControlRequests request, uint16_t index, const uint8_t* data, uint16_t dataLen, uint32_t timeout)
 {
-    return libusb_control_transfer(m_handle.get(),
+    return libusb_control_transfer(m_handle,
                                    static_cast<uint8_t>(direction),
                                    static_cast<uint8_t>(request),
                                    m_hidId,

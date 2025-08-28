@@ -8,6 +8,7 @@
 // #include "Brute.h"
 // #include "UsbHandler.h"
 #include "Settings.h"
+#include "Utils.h"
 
 using namespace boost::program_options;
 
@@ -20,15 +21,18 @@ int main(int argc, char** argv)
         Settings stgs {};
         uint32_t ispeed {0};
         uint32_t sleep {0};
-        bool isDebug {false};
+        uint32_t keepScreen {0};
+        std::string firtsPin {};
+        std::string lastPin {};
 
         options_description desc("Allowed options");
         desc.add_options()
             ("help", "Print help")
-            ("first", value<std::string>(&stgs.firstPin)->default_value(stgs.firstPin), "First pin")
-            ("last", value<std::string>(&stgs.lastPin)->default_value(stgs.lastPin), "Last pin")
-            // ("ispeed", value<uint32_t>(&ispeed)->default_value(stgs.inputSpeed.count()), "pin input speed in ms")
-            // ("sleep", value<uint32_t>(&sleep)->default_value(stgs.sleepInterval.count()), "wait latency in sec")
+            ("first", value<std::string>(&firtsPin)->default_value(stgs.firstPin), "First pin")
+            ("last", value<std::string>(&lastPin)->default_value(stgs.lastPin), "Last pin")
+            ("ispeed", value<uint32_t>(&ispeed)->default_value(stgs.inputSpeed.count()), "pin input speed in ms")
+            ("sleep", value<uint32_t>(&sleep)->default_value(stgs.sleepInterval.count()), "wait latency in sec")
+            ("keep", value<uint32_t>(&keepScreen)->default_value(stgs.keepScreenOnTime.count()), "keep screen turned on in seconds")
             // ("coords", value<TKeyCoordinates>(&stgs.keyCoords), "key coordinates")
             ("debug", "Enable debug messages")
             ;
@@ -50,25 +54,27 @@ int main(int argc, char** argv)
             stgs.inputSpeed = std::chrono::milliseconds(ispeed);
 
         if (vm.count("sleep"))
+            stgs.sleepInterval = std::chrono::seconds(sleep);
+
+        if (vm.count("keep"))
+            stgs.keepScreenOnTime = std::chrono::seconds(keepScreen);
+
+        // if (!vm.count("coords") || !validateKeys(stgs.keyCoords))
+        // {
+
+        // }
+
+        if (validatePin(firtsPin) && validatePin(lastPin))
         {
-
-        }
-
-        if (vm.count("coords"))
-        {
-
+            // TODO: проверять на возрастание?
+            stgs.firstPin = firtsPin;
+            stgs.lastPin = lastPin;
         }
 
         // if ((stgs.lastPin < stgs.firstPin) || (stgs.firstPin.size() > stgs.lastPin.size()))
         //     std::swap(stgs.firstPin, stgs.lastPin);
 
-        // TODO: validate pins
-
-        SPDLOG_INFO("first pin {}, last pin {}, input speed {}, sleep interval {}",
-                                                            stgs.firstPin,
-                                                            stgs.lastPin,
-                                                            stgs.inputSpeed,
-                                                            stgs.sleepInterval);
+        SPDLOG_INFO("Settings: {}", stgs);
     }
     catch (const std::exception& ex)
     {

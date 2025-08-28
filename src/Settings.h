@@ -5,6 +5,8 @@
 #include <string>
 #include <unordered_map>
 
+#include <spdlog/fmt/ostr.h>
+
 using namespace std::chrono;
 
 struct Point;
@@ -34,6 +36,20 @@ struct Settings final
                                 {'8', {} },
                                 {'9', {} },
                                 {'o', {} } };
+
+    template<typename OStream>
+    friend OStream& operator<<(OStream& os, const Settings& obj)
+    {
+        fmt::format_to(std::ostream_iterator<char>(os), "\nFirst pin: {}", obj.firstPin);
+        fmt::format_to(std::ostream_iterator<char>(os), "\nLast pin: {}", obj.lastPin);
+        fmt::format_to(std::ostream_iterator<char>(os), "\nInput key speed: {}", obj.inputSpeed);
+        fmt::format_to(std::ostream_iterator<char>(os), "\nSleep interval between input: {}", obj.sleepInterval);
+        fmt::format_to(std::ostream_iterator<char>(os), "\nTime to prevent screen turned off: {}", obj.keepScreenOnTime);
+        // fmt::format_to(std::ostream_iterator<char>(os), "\nKey coordinates on screen: {}", obj.keyCoords);
+
+        return os;
+    }
+
 };
 
 #endif // SETTINGS_H
