@@ -24,17 +24,21 @@ int main(int argc, char** argv)
         uint32_t keepScreen {0};
         std::string firtsPin {};
         std::string lastPin {};
+        std::string keysCoords {};
 
         options_description desc("Allowed options");
         desc.add_options()
-            ("help", "Print help")
-            ("first", value<std::string>(&firtsPin)->default_value(stgs.firstPin), "First pin")
-            ("last", value<std::string>(&lastPin)->default_value(stgs.lastPin), "Last pin")
-            ("ispeed", value<uint32_t>(&ispeed)->default_value(stgs.inputSpeed.count()), "pin input speed in ms")
-            ("sleep", value<uint32_t>(&sleep)->default_value(stgs.sleepInterval.count()), "wait latency in sec")
-            ("keep", value<uint32_t>(&keepScreen)->default_value(stgs.keepScreenOnTime.count()), "keep screen turned on in seconds")
-            // ("coords", value<TKeyCoordinates>(&stgs.keyCoords), "key coordinates")
-            ("debug", "Enable debug messages")
+            ("help,h", "Print help")
+            ("first,f", value<std::string>(&firtsPin)->default_value(stgs.firstPin), "First pin")
+            ("last,l", value<std::string>(&lastPin)->default_value(stgs.lastPin), "Last pin")
+            ("ispeed,i", value<uint32_t>(&ispeed)->default_value(stgs.inputSpeed.count()),
+                "Pin input speed in ms")
+            ("sleep,s", value<uint32_t>(&sleep)->default_value(stgs.sleepInterval.count()),
+                "Seconds to wait between failed attempts")
+            ("keep,k", value<uint32_t>(&keepScreen)->default_value(stgs.keepScreenOnTime.count()),
+                "Interval in seconds to tap screen to prevent from turning off")
+            ("coords,c", value<std::string>(&keysCoords)->multitoken(), "key coordinates")
+            ("debug,d", "Enable debug messages")
             ;
 
         variables_map vm;
@@ -59,10 +63,15 @@ int main(int argc, char** argv)
         if (vm.count("keep"))
             stgs.keepScreenOnTime = std::chrono::seconds(keepScreen);
 
-        // if (!vm.count("coords") || !validateKeys(stgs.keyCoords))
-        // {
-
-        // }
+        if (vm.count("coords"))
+        {
+            stgs.keyCoords = validateKeys(keysCoords);
+            if (stgs.keyCoords.empty())
+            {
+                SPDLOG_ERROR("TODO");
+                return 0xBAD;
+            }
+        }
 
         if (validatePin(firtsPin) && validatePin(lastPin))
         {

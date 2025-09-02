@@ -9,14 +9,8 @@
 
 using namespace std::chrono;
 
-struct Point;
+using Point = std::pair<uint32_t, uint32_t>;
 using TKeyCoordinates = std::unordered_map<char, Point>;
-
-struct Point final
-{
-    int x {0};
-    int y {0};
-};
 
 struct Settings final
 {
@@ -35,7 +29,7 @@ struct Settings final
                                 {'7', {} },
                                 {'8', {} },
                                 {'9', {} },
-                                {'o', {} } };
+                                {'e', {} } };
 
     template<typename OStream>
     friend OStream& operator<<(OStream& os, const Settings& obj)

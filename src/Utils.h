@@ -3,7 +3,7 @@
 
 #include "Settings.h"
 
-bool validateKeys(const TKeyCoordinates& pins);
+TKeyCoordinates validateKeys(const std::string& pins);
 
 bool validatePin(const std::string& pin);
 
